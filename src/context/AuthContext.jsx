@@ -4,13 +4,22 @@ import api from "../api/axios";
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);  // login user data
+  const [user, setUser] = useState(null);  // logged-in user data
   const [loading, setLoading] = useState(true);
 
-  // ✅ Current user fetch (backend /me)
+  // ✅ Fetch current user (backend /me) with token header
   const fetchUser = async () => {
+    const tokenFromLocalStorage = localStorage.getItem("token");
+    if (!tokenFromLocalStorage) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
     try {
-      const res = await api.get("/auth/me");
+      const res = await api.get("/auth/me", {
+        headers: { Authorization: `Bearer ${tokenFromLocalStorage}` }
+      });
       setUser(res.data.user);
     } catch (error) {
       setUser(null);
@@ -28,6 +37,12 @@ export const AuthProvider = ({ children }) => {
   // ✅ Login
   const login = async (formData) => {
     const res = await api.post("/auth/login", formData);
+
+    if (res.data.success && res.data.token) {
+      // save token in localStorage
+      localStorage.setItem("token", res.data.token);
+    }
+
     setUser(res.data.user);
     return res.data;
   };
@@ -36,6 +51,7 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     await api.post("/auth/logout");
     setUser(null);
+    localStorage.removeItem("token"); // remove token on logout
   };
 
   useEffect(() => {
